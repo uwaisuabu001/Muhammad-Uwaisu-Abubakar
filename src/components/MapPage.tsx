@@ -3,9 +3,11 @@ import L from "leaflet";
 import { VintageShop } from "../types";
 import { 
   ArrowLeft, Search, MapPin, Phone, Clock, Calendar, 
-  Compass, RefreshCw, Layers, SlidersHorizontal, Info, Tag
+  Compass, RefreshCw, Layers, SlidersHorizontal, Info, Tag,
+  Menu, X, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { getShopPhoto, getShopLogoPreset } from "../utils/shopMedia";
 
 interface MapPageProps {
   shops: VintageShop[];
@@ -76,6 +78,12 @@ export default function MapPage({ shops, onBackToLanding, isLoading, onRefresh }
 
     const tiles = L.tileLayer(tileUrl, { attribution }).addTo(map);
     setTileLayerRef(tiles);
+
+    setTimeout(() => {
+      if (map) {
+        map.invalidateSize();
+      }
+    }, 150);
 
     return () => {
       if (mapInstanceRef.current) {
@@ -215,227 +223,191 @@ export default function MapPage({ shops, onBackToLanding, isLoading, onRefresh }
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col md:flex-row bg-[#080706] text-stone-200 overflow-hidden font-sans">
+    <div className="absolute inset-0 bg-[#080706] text-stone-200 overflow-hidden font-sans w-full h-full select-none animate-fade-in">
       
-      {/* Sidebar - Shop Filters and Match List */}
-      <aside className="w-full md:w-[380px] lg:w-[420px] shrink-0 border-r border-amber-900/20 bg-[#0c0a08] flex flex-col z-10 shadow-2xl relative">
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-amber-900/20 bg-[#0f0d0a]">
-          <button
-            onClick={onBackToLanding}
-            className="flex items-center gap-2 group text-stone-400 hover:text-amber-500 transition-colors text-xs font-semibold uppercase tracking-wider mb-4 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Açılış Sayfası
-          </button>
-          
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="font-cinzel tracking-widest text-lg font-bold text-amber-500 flex items-center gap-2">
-              <Compass className="w-5 h-5 text-amber-500 shrink-0" />
-              VİNTAGE REHBERİ
-            </h1>
-            <span className="text-xs bg-amber-950 px-2.5 py-1 rounded-full border border-amber-900/40 text-amber-400 font-semibold font-mono">
-              {filteredShops.length} Dükkan
+      {/* Map Container - Full Screen Background */}
+      <div 
+        ref={mapContainerRef} 
+        className={`absolute inset-0 w-full h-full z-0 transition-all duration-300 ${isOldMapEffect ? "sepia-65 contrast-105 brightness-95 hue-rotate-[-8deg]" : ""}`}
+      />
+
+      {/* Top Left Floating Header & Search Bar Widget */}
+      <div className="absolute top-4 left-4 z-[1001] flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 max-w-[calc(100vw-32px)]">
+        {/* Back To Landing Button */}
+        <button
+          onClick={onBackToLanding}
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#0c0a08]/95 backdrop-blur-md border border-amber-500/35 text-amber-500 hover:text-amber-400 hover:border-amber-400 shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+          title="Açılış Sayfası"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+
+        {/* Search Input Container */}
+        <div className="relative w-64 sm:w-80 shadow-2xl shrink-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
+          <input
+            type="text"
+            placeholder="Dükkan veya semt ara..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-[#0c0a08]/95 backdrop-blur-md border border-amber-900/40 rounded-xl py-2.5 pl-10 pr-10 text-xs sm:text-sm text-stone-200 placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/35 transition-all font-medium"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-amber-500 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Floating Controls Dashboard (Right Top) */}
+      <div className="absolute top-4 right-4 z-[1001] flex flex-col sm:flex-row gap-2 pointer-events-auto">
+        {/* Map theme style toggle button */}
+        <button
+          onClick={() => setMapStyle(prev => prev === "dark" ? "standard" : "dark")}
+          className="flex items-center gap-2 px-3 py-2 h-10 rounded-xl bg-[#0c0a08]/95 backdrop-blur-md border border-amber-900/40 shadow-2xl text-xs font-semibold uppercase tracking-wider text-amber-400 hover:border-amber-500 hover:bg-[#12100d] transition-all cursor-pointer hover:scale-105 active:scale-95"
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{mapStyle === "dark" ? "Gece Haritası" : "Sokak Haritası"}</span>
+        </button>
+
+        {/* Sepia vintage effect toggle button */}
+        <button
+          onClick={() => setIsOldMapEffect(prev => !prev)}
+          className={`flex items-center gap-2 px-3 py-2 h-10 rounded-xl border shadow-2xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer backdrop-blur-md hover:scale-105 active:scale-95 ${
+            isOldMapEffect 
+              ? "bg-amber-950/80 border-amber-500 text-amber-400" 
+              : "bg-[#0c0a08]/95 border-amber-900/40 text-stone-400 hover:border-amber-500 font-medium"
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Eski Kağıt Efekti</span>
+        </button>
+
+        {/* Refresh CSV data */}
+        <button
+          onClick={onRefresh}
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#0c0a08]/95 border border-amber-900/40 text-amber-400 hover:text-amber-300 hover:border-amber-300 hover:border-amber-500 shadow-2xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+          title="Verileri Yenile"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Floating Bottom Card List Slider (list of places) */}
+      <div className="absolute bottom-6 left-4 right-4 z-[1001] pointer-events-none">
+        <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
+          {/* Floating Shops Counter Label */}
+          <div className="flex items-center justify-between px-1 pointer-events-auto">
+            <span className="text-[10px] font-mono font-bold tracking-widest text-amber-500 uppercase bg-[#0c0a08]/95 backdrop-blur-md px-3 py-1 rounded-full border border-amber-900/40 shadow-xl">
+              {filteredShops.length} Vintage Dükkanı Haritalandı
             </span>
           </div>
-          <p className="text-xs text-stone-400 font-serif italic">Zaman tünelinde yolunuzu bulun, semt semt vintage dükkanları haritalayın.</p>
-        </div>
-
-        {/* Filters Panel */}
-        <div className="p-4 border-b border-amber-900/15 bg-[#0e0c09] space-y-3.5">
-          {/* Text Search */}
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
-            <input
-              type="text"
-              placeholder="Dükkan, adres veya semt ara..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#13100c] border border-amber-900/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-stone-200 placeholder-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30 transition-all font-medium"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Semt filter */}
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-amber-600/80 tracking-widest block font-mono pl-0.5">Semt (İlçe)</label>
-              <select
-                value={selectedDistrict}
-                onChange={(e) => setSelectedDistrict(e.target.value)}
-                className="w-full bg-[#13100c] border border-amber-900/30 rounded-xl px-2.5 py-2 text-xs text-stone-300 focus:outline-none focus:border-amber-500 transition-all cursor-pointer font-medium"
-              >
-                <option value="all">Farketmez (Tümü)</option>
-                {districts.filter(d => d !== "all").map((district) => (
-                  <option key={district} value={district}>{district}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Tür filter */}
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-amber-600/80 tracking-widest block font-mono pl-0.5">Mekan Türü</label>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full bg-[#13100c] border border-amber-900/30 rounded-xl px-2.5 py-2 text-xs text-stone-300 focus:outline-none focus:border-amber-500 transition-all cursor-pointer font-medium"
-              >
-                <option value="all">Farketmez (Tümü)</option>
-                {types.filter(t => t !== "all").map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Shops Card List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-amber-950/20 bg-[#0a0907]">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center h-48 space-y-3">
-              <RefreshCw className="w-7 h-7 text-amber-500 animate-spin" />
-              <p className="text-sm text-stone-400 font-serif italic">İstanbul dükkanları ve koordinatları taranıyor...</p>
-            </div>
-          ) : filteredShops.length === 0 ? (
-            <div className="p-12 text-center text-stone-500 text-sm space-y-2">
-              <Info className="w-8 h-8 text-amber-600/50 mx-auto" />
-              <p className="font-serif">Aradığınız kriterlerde dükkan bulunamadı.</p>
-              <button 
-                onClick={() => { setSearchTerm(""); setSelectedDistrict("all"); setSelectedType("all"); }}
-                className="text-xs text-amber-500 hover:underline mt-2 font-semibold"
-              >
-                Filtreleri Temizle
-              </button>
-            </div>
-          ) : (
-            <div className="p-2 space-y-2">
-              {filteredShops.map((shop) => (
+          
+          {/* Horizontally scrolling list of places */}
+          <div className="w-full overflow-x-auto pointer-events-auto flex gap-3.5 py-1 px-0.5 scroll-smooth snap-x scrollbar-thin scrollbar-thumb-amber-950/80 scrollbar-track-transparent">
+            {isLoading ? (
+              <div className="snap-start shrink-0 w-80 h-28 bg-[#0c0a08]/95 backdrop-blur-md rounded-2xl border border-amber-900/30 flex items-center justify-center gap-3 shadow-xl">
+                <RefreshCw className="w-5 h-5 text-amber-500 animate-spin" />
+                <span className="text-xs text-stone-400 font-serif italic">Yükleniyor...</span>
+              </div>
+            ) : filteredShops.length === 0 ? (
+              <div className="snap-start shrink-0 w-80 h-28 bg-[#0c0a08]/95 backdrop-blur-md rounded-2xl border border-amber-900/30 flex flex-col items-center justify-center p-4 text-center gap-1 shadow-xl">
+                <Info className="w-5 h-5 text-amber-600/60" />
+                <p className="text-xs text-stone-400 font-serif">Kriterlere uygun dükkan kaydı bulunamadı.</p>
+                <button 
+                  onClick={() => setSearchTerm("")}
+                  className="text-[10px] text-amber-500 hover:underline font-semibold"
+                >
+                  Aramayı Sıfırla
+                </button>
+              </div>
+            ) : (
+              filteredShops.map((shop) => (
                 <div
                   key={shop.id}
                   onClick={() => handleShopSelectInSidebar(shop)}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer transform hover:-translate-y-0.5 ${
+                  className={`snap-start shrink-0 w-72 sm:w-80 h-28 p-3 rounded-2xl border transition-all duration-300 cursor-pointer flex gap-3 shadow-[0_12px_36px_rgba(0,0,0,0.7)] group ${
                     activeShopId === shop.id
-                      ? "bg-gradient-to-br from-amber-950/40 to-stone-900/40 border-amber-500/60 shadow-lg"
-                      : "bg-[#110f0d]/80 border-amber-950/40 hover:border-amber-800/20 hover:bg-[#161411]"
+                      ? "bg-gradient-to-br from-amber-950/95 to-stone-900/95 border-amber-500 shadow-[0_12px_40px_rgba(245,158,11,0.2)] -translate-y-1.5"
+                      : "bg-[#0c0a08]/95 backdrop-blur-md border-amber-950/65 hover:border-amber-800/60 hover:bg-[#12100d] hover:-translate-y-1"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <h3 className={`font-serif font-bold text-sm leading-tight ${
-                      activeShopId === shop.id ? "text-amber-400" : "text-stone-200 hover:text-amber-500"
-                    }`}>
-                      {shop.name}
-                    </h3>
-                    <span className="text-[10px] shrink-0 font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-950/50 border border-amber-900/30 text-amber-500">
-                      {shop.year}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-serif italic mb-2.5">
-                    <Tag className="w-3 h-3 text-amber-600" />
-                    <span>{shop.type}</span>
-                    <span className="text-amber-800/40">•</span>
-                    <span className="uppercase text-[9px] font-bold font-mono tracking-wider bg-stone-900 px-1 py-0.2 rounded border border-amber-950/40 text-stone-300">
-                      {shop.district}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-stone-400 border-t border-amber-900/10 pt-2 font-sans">
-                    <p className="flex items-start gap-1.5 leading-relaxed">
-                      <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{shop.address}</span>
-                    </p>
-                    {activeShopId === shop.id && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        className="space-y-1.5 pt-1.5 border-t border-amber-900/5 mt-1.5 overflow-hidden"
-                      >
-                        <p className="flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                          <a href={`tel:${shop.phone}`} className="hover:underline text-amber-400">{shop.phone}</a>
-                        </p>
-                        <p className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                          <span>{shop.hours}</span>
-                        </p>
-                      </motion.div>
+                  {/* Photo Thumbnail or Badge Icon */}
+                  <div className="w-20 h-full rounded-xl overflow-hidden shrink-0 border border-amber-900/25 relative bg-stone-950 shadow-inner">
+                    {getShopPhoto(shop) ? (
+                      <img 
+                        src={getShopPhoto(shop) || ""} 
+                        alt={shop.name}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center font-serif text-lg font-bold ${getShopLogoPreset(String(shop.id), shop.name).bg} ${getShopLogoPreset(String(shop.id), shop.name).text} border-2 ${getShopLogoPreset(String(shop.id), shop.name).border}`}>
+                        {shop.name.charAt(0)}
+                      </div>
                     )}
                   </div>
+
+                  {/* Shop Text Info */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                    <div>
+                      <div className="flex items-start justify-between gap-1 mb-1">
+                        <h3 className={`font-serif font-bold text-xs sm:text-sm leading-tight truncate transition-colors ${
+                          activeShopId === shop.id ? "text-amber-400" : "text-stone-200 group-hover:text-amber-500"
+                        }`}>
+                          {shop.name}
+                        </h3>
+                        <span className="text-[9px] shrink-0 font-mono font-semibold px-2 py-0.5 rounded-md bg-amber-950/60 border border-amber-900/40 text-amber-500">
+                          {shop.year}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-stone-400 font-serif italic">
+                        <Tag className="w-3 h-3 text-amber-600 shrink-0" />
+                        <span className="truncate">{shop.type}</span>
+                        <span className="text-amber-800/40">•</span>
+                        <span className="uppercase text-[8px] font-bold font-mono tracking-wider bg-stone-900 px-1 py-0.2 rounded border border-amber-950/40 text-stone-300 truncate font-semibold">
+                          {shop.district}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-stone-400 space-y-0.5 border-t border-amber-900/10 pt-1">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span className="truncate">{shop.address}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span className="truncate text-stone-500">{shop.hours}</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* Map Display & Controls Panel */}
-      <section className="flex-1 relative h-[50vh] md:h-auto min-h-[300px]">
-        {/* Retro style Sepia overlay container based on checkmark */}
-        <div 
-          ref={mapContainerRef} 
-          className={`w-full h-full z-0 transition-all duration-300 ${isOldMapEffect ? "sepia-65 contrast-105 brightness-95 hue-rotate-[-8deg]" : ""}`}
-        />
-
-        {/* Map View Custom Control Widgets Overlay */}
-        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-auto">
-          {/* Back button overlay */}
-          <button
-            onClick={onBackToLanding}
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-full bg-[#0c0a08]/90 border border-amber-600/30 text-amber-500 hover:text-amber-400 shadow-xl"
-            title="Açılış Sayfası"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Floating Controls Dashboard (Right Top) */}
-        <div className="absolute top-4 right-4 z-10 flex flex-col sm:flex-row gap-2 pointer-events-auto">
-          {/* Map theme style toggle button */}
-          <button
-            onClick={() => setMapStyle(prev => prev === "dark" ? "standard" : "dark")}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0c0a08]/90 border border-amber-900/30 shadow-lg text-xs font-semibold uppercase tracking-wider text-amber-400 hover:border-amber-500 hover:bg-[#12100d] transition-all cursor-pointer backdrop-blur"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>{mapStyle === "dark" ? "Gece Haritası" : "Sokak Haritası"}</span>
-          </button>
-
-          {/* Sepia vintage effect toggle button */}
-          <button
-            onClick={() => setIsOldMapEffect(prev => !prev)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl border shadow-lg text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer backdrop-blur ${
-              isOldMapEffect 
-                ? "bg-amber-950/80 border-amber-500 text-amber-400" 
-                : "bg-[#0c0a08]/90 border-amber-900/30 text-stone-400 hover:border-amber-500"
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Eski Kağıt Efekti</span>
-          </button>
-
-          {/* Refresh CSV data */}
-          <button
-            onClick={onRefresh}
-            className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#0c0a08]/90 border border-amber-900/30 text-amber-400 hover:text-amber-300 hover:border-amber-500 shadow-lg transition-all cursor-pointer"
-            title="Verileri Yenile"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Vintage Aesthetic Frame Ornament around map (Desktop only) */}
-        <div className="absolute right-4 bottom-14 z-10 hidden md:flex flex-col p-4 w-60 rounded-2xl bg-[#0d0c0a]/95 border border-amber-800/30 shadow-2xl backdrop-blur-md pointer-events-auto select-none font-serif">
-          <div className="border-b border-amber-900/30 pb-2 mb-2 flex items-center justify-between">
-            <span className="font-cinzel text-xs text-amber-400 tracking-widest font-bold">ZAMAN PUSULASI</span>
-            <Compass className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-[11px] text-stone-400 leading-relaxed font-sans">
-            Haritadaki dükkan simgelerine dokunarak detayları görüntüleyebilir, fareyi üzerlerinde tutarak isimlerini görebilirsiniz.
-          </p>
-          <div className="flex gap-2.5 items-center mt-3 pt-2.5 border-t border-amber-900/10 font-sans text-[10px]">
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 border border-amber-950 shadow-[0_0_4px_#f59e0b]"></div>
-            <span className="text-stone-500 tracking-wide font-medium">Aktif Seçilmeyen Vintage Noktası</span>
+              ))
+            )}
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Vintage Aesthetic Frame Ornament around map (Desktop only) */}
+      <div className="absolute right-4 bottom-40 z-[1001] hidden lg:flex flex-col p-4 w-60 rounded-2xl bg-[#0d0c0a]/95 border border-amber-800/30 shadow-2xl backdrop-blur-md pointer-events-auto select-none font-serif">
+        <div className="border-b border-amber-900/30 pb-2 mb-2 flex items-center justify-between">
+          <span className="font-cinzel text-xs text-amber-400 tracking-widest font-bold">ZAMAN PUSULASI</span>
+          <Compass className="w-4 h-4 text-amber-500" />
+        </div>
+        <p className="text-[11px] text-stone-400 leading-relaxed font-sans">
+          Haritadaki dükkan simgelerine dokunarak detayları görüntüleyebilir, fareyi üzerlerinde tutarak isimlerini görebilirsiniz.
+        </p>
+        <div className="flex gap-2.5 items-center mt-3 pt-2.5 border-t border-amber-900/10 font-sans text-[10px]">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 border border-amber-950 shadow-[0_0_4px_#f59e0b]"></div>
+          <span className="text-stone-500 tracking-wide font-medium">Vintage Noktaları</span>
+        </div>
+      </div>
     </div>
   );
 }

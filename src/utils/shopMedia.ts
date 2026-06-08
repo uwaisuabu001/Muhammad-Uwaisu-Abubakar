@@ -42,7 +42,7 @@ const LOGO_PRESETS = [
 /**
  * Returns the spreadsheet-provided photo URL or null if empty.
  */
-export function getShopPhoto(shop: { name: string; type: string; id: string; foto?: string }): string | null {
+export function getShopPhoto(shop: { name: string; type: string; id: string | number; foto?: string }): string | null {
   if (shop.foto && shop.foto.trim().startsWith('http')) {
     const extracted = extractGoogleUserContent(shop.foto);
     if (extracted) return extracted;
