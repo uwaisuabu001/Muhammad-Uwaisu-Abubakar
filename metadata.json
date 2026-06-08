@@ -1,0 +1,8 @@
+{
+  "name": "İstanbul Vintage Haritası",
+  "description": "İstanbul'un en şık ve tarihi vintage dükkanlarını Leaflet.js ve OpenStreetMap üzerinde görebileceğiniz interaktif rehber haritası.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
